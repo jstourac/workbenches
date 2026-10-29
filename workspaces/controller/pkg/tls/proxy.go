@@ -70,9 +70,8 @@ type ProxyTLS struct {
 
 // Args returns kube-rbac-proxy flags for this listener.
 // The cipher flag is omitted for TLS 1.3. The curve flag is omitted when
-// Curves is empty. kube-rbac-proxy before v0.23 rejects --tls-curve-preferences,
-// and the pinned odh-kube-auth-proxy digest runs v0.19.1, so the hardened
-// Intermediate fallback leaves Curves empty.
+// Curves is empty. The hardened Intermediate fallback has no group list, so
+// it leaves Curves empty.
 func (p ProxyTLS) Args() []string {
 	args := make([]string, 0, 3)
 	if p.MinVersion != "" {

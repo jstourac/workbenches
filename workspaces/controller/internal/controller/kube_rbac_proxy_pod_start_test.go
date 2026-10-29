@@ -48,7 +48,22 @@ func TestPinnedKubeRBACProxyStarts(t *testing.T) {
 		}
 		args := renderProxyArgs(t, settings)
 		if containsArgPrefix(args, "--tls-curve-preferences=") {
-			t.Fatalf("fallback args include a curve flag the pinned image rejects: %v", args)
+			t.Fatalf("fallback args include a curve flag: %v", args)
+		}
+		startPinnedProxy(t, cli, mountOpt, image, args)
+	})
+
+	t.Run("strict intermediate curve preferences", func(t *testing.T) {
+		settings, err := pkgtls.ResolveProxyTLS(context.Background(), apiReaderWith(apiServerProfile(
+			map[string]any{"type": "Intermediate"},
+			"StrictAllComponents",
+		)), false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		args := renderProxyArgs(t, settings)
+		if !containsArg(args, "--tls-curve-preferences=4588,29,23,24") {
+			t.Fatalf("strict Intermediate args = %v", args)
 		}
 		startPinnedProxy(t, cli, mountOpt, image, args)
 	})
@@ -174,9 +189,9 @@ current-context: test
 		_ = exec.CommandContext(ctx, cli, "rm", "-f", name).Run()
 	})
 
-	runArgs := make([]string, 0, 15+len(args)+1)
+	runArgs := make([]string, 0, 12+len(args)+1)
 	runArgs = append(runArgs,
-		"run", "-d", "--name", name, "--user", "1001",
+		"run", "-d", "--name", name,
 		"-p", "127.0.0.1::8444",
 		"-v", configDir+":/etc/kube-rbac-proxy"+mountOpt,
 		"-v", certDir+":/etc/tls/private"+mountOpt,
@@ -210,8 +225,8 @@ current-context: test
 			last = body
 			if ok {
 				logs := containerLogs(cli, name)
-				if !strings.Contains(logs, "Starting kube-rbac-proxy...") {
-					t.Fatalf("entrypoint did not start kube-rbac-proxy\n%s", logs)
+				if !strings.Contains(logs, "Listening securely on 0.0.0.0:8443") {
+					t.Fatalf("kube-rbac-proxy did not listen\n%s", logs)
 				}
 				return
 			}
